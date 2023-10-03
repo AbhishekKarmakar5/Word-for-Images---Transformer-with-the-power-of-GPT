@@ -2,7 +2,7 @@
 The Vision Transformer is utilized as an encoder for feature extraction, while GPT2 serves as the decoder, generating text or captions for images. 
 Standard datasets Flickr8K and Flickr30k are used for testing and training purposes. BLEU (Bilingual Evaluation Understudy) score is used to evaluate a generated text.
 
-## BLEU Score obtained using ViT Base + GPT2 is 0.60
+**BLEU Score obtained using ViT Base + GPT2 is 0.60**
 
 Here are the following links of report and PPT:-
 
