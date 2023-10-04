@@ -32,4 +32,16 @@ Additionally, another implementation of image caption generation is provided usi
 - Feature Extractor: VGG19
 - Text Generator: Dense LSTM
 
-You can find the code for this alternative implementation in the GitHub repository [here](https://github.com/Ab
+You can find the code for this alternative implementation in the GitHub repository [here](https://github.com/AbhishekKarmakar5/Image-Caption-Generation-using-VGG19-and-Dense-LSTM/).
+
+## Usage
+
+To get started with this project, follow these steps:
+
+1. Clone the repository to your local machine.
+2. Install the required dependencies.
+3. Run the main script to perform image caption generation.
+
+```bash
+# Example command to run the code
+python main.py
