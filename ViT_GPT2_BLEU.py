@@ -165,3 +165,8 @@ for item in val_dataset:
     hypotheses.append(tokenizer.decode(generated_ids[0], skip_special_tokens=True))
 
 calculate_bleu(references, hypotheses)
+
+"""
+The overall BLEU score for a set of test data is typically computed as the geometric mean of these individual BLEU scores. 
+The BLEU score can range from 0 (no match) to 1 (perfect match), where a higher score indicates better similarity between the generated text and the reference text.
+"""
