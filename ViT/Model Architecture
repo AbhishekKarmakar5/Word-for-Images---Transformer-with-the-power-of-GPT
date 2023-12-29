@@ -1,0 +1,118 @@
+1. Initialize hyperparameters:
+
+   	- Encoder: Choose either of "google/vit-base-patch16-224" or "google/vit-large-patch16-224" or "google/vit-huge-patch16-224" (This is a Vision Transformer (ViT) model provided by Google. It's a pre-trained model for image processing tasks.)
+
+   	- Decoder: "gpt2" (The decoder is based on the GPT-2 language model, which is commonly used for text generation tasks.)
+
+   	- Training Batch Size: 8 and Validation Batch Size: 8 (These parameters determine the number of samples processed in each iteration during training and validation. A smaller batch size is often used for fine-tuning to fit into GPU memory.)
+
+   	- Learning Rate: 5e-5 (The learning rate is a hyperparameter that controls the step size during optimization. 5e-5 is a commonly used value for fine-tuning pre-trained models.)
+
+   	- Epochs: 'n' (The number of epochs defines how many times the entire dataset is processed during training. 'n' epochs mean the model will see the entire dataset 'n' times.) 
+   Typically chosen as 20.
+
+   	- Image Size: (224, 224)  (The images are resized to 224x224 pixels. This is a common practice to standardize the input size for deep learning models.)
+
+   	- Maximum Caption Length: 128 (This sets the maximum length of the generated captions. Captions longer than this length will be truncated.)
+
+   	- Mean and Standard Deviation for Image Normalization: 
+	   (The values for MEAN and STD in image normalization are typically chosen based on the statistics of the dataset on which the model is trained. These values are used to normalize the pixel values of images so that they have a standard mean and standard deviation, which can help improve the convergence and training stability of deep learning models.)
+	   For each channel (e.g., red, green, blue), the mean and standard deviation are calculated separately so that is can be normalized between 0-1 using min max normalization.
+	   Mean for Image Normalization: (0.485, 0.456, 0.406)
+	   Standard Deviation for Image Normalization: (0.229, 0.224, 0.225)
+
+   	- Tokenizer for captions: GPT2 tokenizer (GPT2 tokenizer is used to tokenize and process the text data, converting it into a format suitable for training.)
+
+   	- Number of Workers for DataLoader: Based on available CPU cores. (This parameter sets the number of parallel processes used for data loading. It's typically set based on the number of available CPU cores.)
+
+2. Define a function to build inputs with special tokens for the tokenizer:
+   	- In the context of sequence-to-sequence models, this function is crucial for properly formatting the input sequences by adding special tokens at the beginning(bos_token_id) and end (eos_token_id), 'bos_token_id' means beginning of a sentence token id and 'eos_token_id' means end of a sentence token id. This ensures that the model understands where the sequence starts and ends during training and inference.
+
+3. Load sentence evaluation metric both language generation (BLEU) and content relevance (ROUGE-2)
+
+4. Define a function to compute metrics based on predictions:
+   	- This function takes the model predictions and labels and computes several metrics to evaluate the performance of the model.
+   	- Extract Predictions and Labels: Extract the predicted token IDs (pred_ids) and actual label token IDs (labels_ids) from the model's output.
+   	- Decode Tokens: Decode the token IDs into human-readable strings (pred_str and label_str). Skipping special tokens ensures that tokens like [CLS], [SEP], etc., are not considered in the evaluation.
+   	- ROUGE-2 Metric Calculation: Use the ROUGE-2 metric to compute precision, recall, and F1 score for bigrams (two-word sequences) in the predicted and reference captions.
+   	- BLEU Metric Calculation: Use the BLEU metric to compute a score for the quality of the generated captions compared to the reference captions.
+   	- Return Metrics: Return a dictionary containing various metrics such as BLEU score, precisions, brevity penalty, ROUGE-2 precision, recall, and F1 score.
+
+5. Load Vision Transformer (ViT) image processor (ViTImageProcessor) for image Feature extraction and GPT2 tokenizer (the tokenizer for GPT2 is loaded using the AutoTokenizer).
+
+6. Function to apply the transformations on images using the initially declared hyperparameters point 1 - i) Resizing the image to (224,224), ii) Converting the image to Tensor, iii) Normalizing the image (pixel ranging from 0-1)
+
+7. Now, read the flickr csv file consisting of image names and their captions.
+
+8. Split the dataset into training and validation sets. Flickr30k dataset is divided into 25k (training), 3k (validation) and 3k (testing) where as flickr8k dataset is divided into 6k (training), 1k (validation) and 1k (testing)
+
+9. Initialize a ViT image processor and GPT2 tokenizer:
+   	- Use pretrained models for the ViT image processor and GPT2 tokenizer.
+   	- For ViT image processor, use the pretrained Encoder model from initially delcared hyperparameters in point 1.
+   	- For GPT2 tokenizer, use the pretrained model "gpt2".
+
+10. Define a dataset class (ImgDataset) to load and preprocess images and captions.
+   	- ImgDataset is a custom dataset class that inherits from the PyTorch Dataset class.
+   	- The constructor (__init__) initializes the dataset with essential parameters such as DataFrame (df) which is the DataFrame containing image filenames and captions, root directory (root_dir) where images are stored, tokenizer for captions (tokenizer), Vision Transformer feature extractor (feature_extractor), and an optional image transformation for resizing, converting to tensors and normalization (transform explained in point 6).
+   	- __len__ method returns the total number of samples in the dataset.
+   	- __getitem__ method loads and preprocesses the image and caption for a given index (idx). It reads the image, applies the specified transformation, normalizes pixel values, extracts pixel values using the feature extractor, and tokenizes the caption using GPT2 tokenizer (In the case of Flickr8k and Flickr30k, the maximum description length are 34 and 75). The result is a dictionary (encoding) containing pixel values and tokenized captions.
+
+11. Create training and validation datasets using the defined dataset class. It involves creating instances of the ImgDataset class for both the training and validation sets, providing the necessary data and configurations for the model to learn from and evaluate on.
+	- 'ImgDataset' is instantiated for both training (train_dataset) and validation (val_dataset) datasets. The constructor of 'ImgDataset' takes several parameters, including the dataframes, the root directory where images are stored ('flickr30k_images' or 'flickr8k_images'), the tokenizer, the feature extractor, and any image transformations specified (transforms).
+	- Each dataset instance (train_dataset and val_dataset) now represents a collection of preprocessed image-caption pairs. These instances will be used during the training and evaluation phases.
+	- The ImgDataset class is designed to be compatible with PyTorch's DataLoader, allowing us to efficiently iterate over batches of data during training.
+
+12. Initialize an object model = VisionEncoderDecoderModel(Encoder, Decoder) taking Encoder and Decoder as input. These are the two pretrained models to create an instance of a model that combines a vision encoder (ViT) and a language decoder (GPT-2) to form a unified model for image captioning task. 'VisionEncoderDecoderModel' is a Hugging Face transformer model designed for tasks that involve both images and text. It's essentially a combination of a vision encoder and a language decoder.
+	- The ViT processes the input image and produces a feature representation.
+	- The GPT-2 decoder takes this feature representation and generates a caption for the image.
+	- Configuring the model involves adapting it for the specific requirements for a given image captioning task. This involves setting the model's configuration such as defining start and end tokens for decoding, setting the maximum length of generated captions, vocab size and specifying parameters for beam search.
+	-  model.config.decoder_start_token_id = tokenizer.cls_token_id
+	The start token for decoding in the GPT-2 decoder part of the model is set to <cls>. In many language models, the <cls> token is used as a special token to indicate the beginning of a sequence.
+	- model.config.pad_token_id = tokenizer.pad_token_id
+	This line sets the padding token for the model. During training and evaluation, sequences are often padded to have the same length, and the padding token is used for this purpose. The pad_token_id is set to the <pad> token of the GPT-2 tokenizer.
+	- model.config.vocab_size = model.config.decoder.vocab_size
+	This line ensures that the vocabulary size of the model is consistent with the decoder's vocabulary size. It's important to align the vocabulary size used in decoding with the actual vocabulary size of the model. 
+	'vocab_size' represents the size of the vocabulary, i.e., the total number of unique words in the text data. In the context of image captioning, it is the number of unique words present in the descriptions of images in training dataset. This value is determined by the tokenizer, which is responsible for mapping words in the text to numerical indices.
+	- model.config.eos_token_id = tokenizer.sep_token_id
+	This line sets the end-of-sequence token for decoding. In many models, the <sep> token is used to indicate the end of a sequence.
+	- model.config.decoder_start_token_id = tokenizer.bos_token_id
+	This line sets the beginning-of-sequence token for decoding. The <bos> token is often used to indicate the start of a sequence.
+	- model.config.max_length = 128
+	This line sets the maximum length for the generated captions. Captions longer than this length will be truncated. It ensures that the generated captions are not excessively long.
+	- model.config.early_stopping = True
+	This enables early stopping during training. Early stopping is a regularization technique where training is stopped if the performance on the validation set stops improving, preventing overfitting.
+	- model.config.no_repeat_ngram_size = 3
+	This parameter is used in beam search to prevent repetition of n-grams in the generated sequence. Setting it to 3 means that the model will avoid repeating sequences of length 3 during generation.
+	- model.config.length_penalty = 2.0
+	This introduces a length penalty during generation. A higher length penalty encourages the model to generate shorter sequences. A value of 2.0 indicates a moderate preference for shorter sequences.
+	- model.config.num_beams = 4
+	This sets the number of beams used in beam search. Beam search is a technique used to generate multiple possible sequences and then select the one with the highest probability. Setting num_beams to 4 means that the model explores four different sequences during beam search.
+
+13. Initiate the trainer to configure the training arguments, which are settings that control the model training process. The Seq2SeqTrainingArguments class from the Hugging Face Transformers library is utilized for this purpose. Key parameters include the output directory, specifying where the trained model and related files will be saved. The per-device train and evaluation batch sizes determine the number of samples processed in each forward and backward pass during training and evaluation, respectively. The predict with generate flag is set to true, indicating the generation of predictions during evaluation. The evaluation strategy is defined as 'epoch,' meaning the model is evaluated after each training epoch. Additional parameters include logging steps = 1024, save steps = 2048, and warm-up steps = 1024, influencing the frequency of log generation, model saving, and the learning rate warm-up schedule. The learning rate itself is set to 5e-5, determining the initial learning rate for the optimizer. The total number of training epochs is specified as 20, and the overwrite output directory flag ensures the contents of the output directory are overwritten if it already exists. Finally, the save total limit parameter limits the number of checkpoints to save. These arguments collectively provide the configuration for the Seq2SeqTrainer during model training.
+	- 
+14. Create a data collator function for batching data.
+	- A data collator is like a helper function that takes a batch of data (in this case, images and their corresponding captions) and organizes it in a format that can be easily fed into the neural network for training. It ensures that the data is structured correctly for the model to understand and learn from.
+	- Neural networks, especially when dealing with sequences like captions, often require input data to be of uniform size. In our case, each image might have a different number of words in its caption. The data collator helps handle this by padding or truncating the captions to a consistent length so that they can be processed together in batches.
+	- Input: The input to the data collator is a batch of examples, where each example includes an image and its corresponding caption.
+	- Processing: The data collator looks at all the captions in the batch and ensures they are of the same length. It might pad shorter captions or truncate longer ones to achieve uniformity.
+	- Output: The collated batch is then returned with the images and captions ready for training.
+
+15. Instantiate a Seq2SeqTrainer with the configured model, training arguments, and datasets.
+	- This step involves creating an object of the Seq2SeqTrainer class, which is a part of the Hugging Face Transformers library. The trainer is responsible for managing the training process, including iterating through batches of data, calculating gradients, and updating the model's parameters during training.
+	- In this instantiation, we provided the configured model, training arguments, metrics computation function, and the datasets to the Seq2SeqTrainer. Once instantiated, we had usedthe trainer to initiate the training process by calling trainer.train(). It takes care of iterating through batches, calculating gradients, and updating the model's parameters over the specified number of training epochs.
+
+16. Define a callback to save the model after each epoch.  A callback is like a special instruction that we generally give to the computer to do something at a specific point during training. In this case, the callback is designed to save the model after each epoch.
+
+17. Train the model using the trainer.
+	- Instantiate Trainer: We have a previously set up a Seq2SeqTrainer object named trainer with all the necessary configurations (model, training arguments, datasets, etc.).
+	- Training Loop: The trainer.train() method initiates the training loop. This loop goes through the entire training dataset multiple times (epochs) to improve the model's ability to generate accurate captions.
+	- Epochs: During each pass through the entire training dataset (an epoch), the model adjusts its internal parameters to get better at the task.
+	- Batch Processing: The dataset is too large to process all at once, so it is divided into smaller batches (sets of images and their corresponding captions). The model is updated after processing each batch, and this process is repeated for all batches in the training dataset.
+	- Loss Calculation: The model's performance is evaluated using a loss function, which measures how well the generated captions match the actual captions. The model aims to minimize this loss, improving its ability to generate accurate captions.
+	- Backpropagation: The training process involves backpropagation, where the model looks at the errors it made (the difference between generated and actual captions) and adjusts its internal parameters to reduce these errors.
+	- Optimizer Update: An optimizer (e.g., Adam) is used to guide the model's adjustments during training. It updates the model's parameters based on the gradients calculated during backpropagation.
+	- Logging and Saving: During training, the trainer may log information such as loss, accuracy, and other metrics to keep track of the model's progress. Having a callback (SaveModelCallback) that saves the model's current state after each epoch, ensuring we can use the trained model even if training is interrupted.
+	- Completion: The training loop continues until the specified number of epochs is reached. After training is complete, we have a model that has learned patterns from the training dataset and can generate captions for new images.
+
+18. Save the final model.
+
